@@ -42,34 +42,52 @@ while($imagefile=$imagedir->read()) {
 		}
 	}
 }
+
+// 絵文字をソートしておく
+sort($emoji_images);
+
 // 絵文字数よりウィンドウ幅作成
 $emoji_sum = count($emoji_images);
 $emoji_col = sqrt($emoji_sum);
 if (is_float($emoji_col)) {
-	$emoji_width = (floor($emoji_col) + 1) * 17;
+	$emoji_width = (floor($emoji_col) + 1) * 10;
 } else {
-	$emoji_width = $emoji_col * 17;
+	$emoji_width = $emoji_col * 10;
 }
 ?>
 <?php
 /**************************************************
   スクリプト設定
  **************************************************/
+$emoji_per_page = 100;
 ?>
 <script type="text/javascript">
 // 共通変数
 var emoji_insert_link;
 // 絵文字一覧
-var emoji_list =
+var emoji_per_page = <?php echo $emoji_per_page ?>;
+var emoji_current_page = 0;
+var emoji_page_count = <?php echo (int)ceil($emoji_sum / $emoji_per_page) ?>;
+var emoji_list = new Array(emoji_page_count);
 <?php
-echo '"';
-foreach ($emoji_images as $img) {
-//	echo '<a href=\"javascript:void(0);\" id=\"emoji_insert_button\"><img src=\"',$imagesurl,$img,'\" style=\"margin:1px;\"/></a>';
-	echo '<a href=\"javascript:void(0);\" id=\"emoji_insert_button\" style=\"text-decoration:none;\"><img src=\"',$imagesurl,$img,'\" alt=\"',$img,'\" style=\"margin:1px;\"/></a>';
+foreach ($emoji_images as $i => $img) {
+	$page = floor($i / $emoji_per_page);
+	$j = $i % $emoji_per_page;
 
-}
-echo '";';
+	if ($j == 0):
 ?>
+	emoji_list[<?php echo $page ?>] = new Array(<?php echo $emoji_per_page ?>);
+<?php
+	endif;
+?>
+emoji_list[<?php echo $page ?>][<?php echo $j ?>] =
+<?php
+	echo '"<a href=\"javascript:void(0);\" class=\"emoji_insert_button\" style=\"text-decoration:none;\"><img src=\"',$imagesurl,$img,'\" alt=\"',$img,'\" style=\"margin:2px;\"/></a>";';
+	echo "\n";
+}
+?>
+
+
 // 絵文字ウィンドウ定義追加
 jQuery(function () {
 	jQuery("body").append("<div id=\"emojidiv\"></div>");
@@ -97,16 +115,30 @@ function emoji_window_show(link) {
 		jQuery(link['divelement']).css("left", emojidiv_left);
 	}
 	jQuery(link['divelement']).css("width", emojidiv_width + "px");
-	jQuery(link['divelement']).html("<div style=\"text-align:right;margin-bottom:5px;\"><a href=\"javascript:void(0);\" id=\"emoji_close_button\" style=\"text-decoration:none;\">閉じる</a></div>" + emoji_list);
-	jQuery(function () {
-		jQuery(link['divelement']).children("a[id^='emoji_insert_button']").click(function(event){
-			emoji_window_hide();
-			emoji_insert(event.target.alt);
-		});
-	});
+	jQuery(link['divelement']).html(
+			"<div style=\"float:left;margin-bottom:5px;\">" +
+			"<a href=\"javascript:void(0);\" id=\"emoji_prev_button\" style=\"text-decoration:none;visibility:hidden;\">＜前へ</a>" +
+			"　" +
+			"<a href=\"javascript:void(0);\" id=\"emoji_next_button\" style=\"text-decoration:none;visibility:visible;\">次へ＞</a>" +
+			"</div>" +
+			"<div style=\"float:right;margin-bottom:5px;\">" +
+			"<a href=\"javascript:void(0);\" id=\"emoji_close_button\" style=\"text-decoration:none;\">閉じる</a>" +
+			"</div>" +
+			"<br clear=\"both\" />" +
+			"<div id=\"emoji_table\">" +
+			"</div>");
+
+	emoji_table(emoji_list, emoji_current_page);
+
 	jQuery(function () {
 		jQuery(link['divelement']).find("#emoji_close_button").click(function(event){
 			emoji_window_hide();
+		});
+		jQuery(link['divelement']).find("#emoji_next_button").click(function(event){
+			emoji_next();
+		});
+		jQuery(link['divelement']).find("#emoji_prev_button").click(function(event){
+			emoji_prev();
 		});
 	});
 	if (emoji_insert_link['onload']) {
@@ -127,6 +159,32 @@ function mousePosition(event) {
 		return {x:0, y:0};
 	}
 }
+// 絵文字テーブル
+function emoji_table(emoji_list, i) {
+	jQuery("#emoji_table").html(
+			emoji_list[i].join('')
+	);
+	emoji_current_page = i;
+
+	jQuery('#emoji_next_button').css('visibility',
+			emoji_current_page == emoji_page_count - 1 ? 'hidden' : 'visible');
+	jQuery('#emoji_prev_button').css('visibility',
+			emoji_current_page == 0 ? 'hidden' : 'visible');
+
+	jQuery('.emoji_insert_button').click(function(event){
+		emoji_window_hide();
+		emoji_insert(event.target.alt);
+	});
+}
+
+function emoji_next() {
+	emoji_table(emoji_list, emoji_current_page + 1);
+}
+
+function emoji_prev() {
+	emoji_table(emoji_list, emoji_current_page - 1);
+}
+
 // 絵文字挿入
 function emoji_insert(emoji) {
 	var emoji_insert_image_url = "<?php echo $imagesurl ?>" + emoji;
